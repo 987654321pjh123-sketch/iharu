@@ -1,3 +1,5 @@
+import {databaseConnectionOptions} from '../../server/adapters/database-tls.js';
+
 export type SetupFinding={key:string;state:'ready'|'missing'|'invalid';reason?:string};
 const providers={email:['RESEND_API_KEY','MAIL_FROM'],google:['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET'],kakao:['KAKAO_CLIENT_ID','KAKAO_CLIENT_SECRET'],naver:['NAVER_CLIENT_ID','NAVER_CLIENT_SECRET'],phone:['SOLAPI_API_KEY','SOLAPI_API_SECRET','SMS_FROM','SMS_DAILY_BUDGET']};
 function role(url:URL|undefined){try{return url?decodeURIComponent(url.username).split('.')[0]:'';}catch{return '';}}
@@ -12,10 +14,9 @@ export function inspectSetup(env:NodeJS.ProcessEnv){
  const urls:Record<string,URL>={};
  for(const key of ['APP_DATABASE_URL','AUTH_DATABASE_URL']){
   let url:URL|undefined;try{url=new URL(env[key]!);}catch{/* Avoid printing connection strings. */}
-  const local=url&&['localhost','127.0.0.1','[::1]'].includes(url.hostname);
-  const unsafeTLS=url&&['disable','allow','prefer','no-verify'].includes(url.searchParams.get('sslmode')||'');
+  let validTLS=false;try{databaseConnectionOptions(env[key]!);validTLS=true;}catch{/* Use the same TLS policy as the runtime without exposing parser details. */}
   const user=role(url);
-  const valid=!!url&&['postgres:','postgresql:'].includes(url.protocol)&&!!url.password&&url.pathname.length>1&&!['postgres','supabase_admin','service_role','iharu_policy'].includes(user)&&!!user&&!(unsafeTLS&&!local);
+  const valid=!!url&&validTLS&&!!url.password&&url.pathname.length>1&&!['postgres','supabase_admin','service_role','iharu_policy'].includes(user)&&!!user;
   record(key,valid,'비관리자 PostgreSQL 역할과 암호·DB 이름·검증 가능한 TLS가 필요합니다.');if(valid)urls[key]=url!;
  }
  if(urls.APP_DATABASE_URL&&urls.AUTH_DATABASE_URL&&role(urls.APP_DATABASE_URL)===role(urls.AUTH_DATABASE_URL)){
