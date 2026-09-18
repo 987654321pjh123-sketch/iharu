@@ -17,7 +17,7 @@ export const dashboardSchema = z.object({
   holidays: z.array(z.object({ date: z.string(), title: z.string() })), tuition: z.array(tuitionSchema),
 });
 export const healthSchema = z.object({
-  status: z.literal('ok'), phase: z.literal('P01'), demoEnabled: z.boolean(),
+  status: z.literal('ok'), phase: z.literal('P02'), demoEnabled: z.boolean(),
   environment: z.enum(['local', 'preview', 'production']),
 });
 export const envelope = <T extends z.ZodType>(data: T) => z.object({

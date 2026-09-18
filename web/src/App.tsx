@@ -8,6 +8,8 @@ import { PreviewDialog, ErrorState, Loading } from './components/Common';
 import { Guardian } from './pages/Guardian';
 import { ChildHome } from './pages/ChildHome';
 import { Upcoming } from './pages/Upcoming';
+import { LoginPage, PhonePage } from './pages/Login';
+import { AccountPage, ReauthPage, EmailLinkPage } from './pages/Account';
 const healthResponse=envelope(healthSchema);
 const guardianNav: {to:string;label:string;icon:IconName}[]=[{to:'/today',label:'오늘',icon:'home'},{to:'/location',label:'아이 위치',icon:'pin'},{to:'/chat',label:'가족 대화',icon:'chat'},{to:'/records',label:'기록',icon:'book'}];
 const childNav:typeof guardianNav=[{to:'/child',label:'내 하루',icon:'home'},{to:'/child/chat',label:'가족 대화',icon:'chat'}];
@@ -22,6 +24,7 @@ function Shell() {
   const demo=health.data?.data.demoEnabled===true;
   const nav=isChild?childNav:guardianNav;
   const todayActive=['/today','/calendar','/tuition','/repeats'].includes(pathname);
+  if (!health.loading && !health.error && !demo) return <Navigate to="/login" replace/>;
   function navigation(className:string) { return <nav className={className} aria-label={className==='bottom-nav'?'모바일 주 메뉴':'주 메뉴'}>{nav.map(item=><NavLink key={item.to} end to={item.to} className={()=>((item.to==='/today'?todayActive:pathname===item.to)?'active':'')} aria-current={(item.to==='/today'?todayActive:pathname===item.to)?'page':undefined}><Icon name={item.icon}/><span>{item.label}</span></NavLink>)}</nav>; }
   return <div className={`app ${isChild?'child-mode':''}`}>
     <a className="skip-link" href="#main">본문 바로가기</a>
@@ -39,4 +42,9 @@ function Shell() {
     </div>{demo&&navigation('bottom-nav')}{dialog&&<PreviewDialog title={dialog} onClose={()=>setDialog(null)}/>}
   </div>;
 }
-export default function App(){return <BrowserRouter><Shell/></BrowserRouter>;}
+export default function App(){return <BrowserRouter><Routes>
+  {['/login','/signup','/forgot-password','/verify-email','/reset-password'].map(path=><Route key={path} path={path} element={<LoginPage key={path}/>}/>)}
+  <Route path="/phone" element={<PhonePage/>}/><Route path="/account" element={<AccountPage/>}/>
+  <Route path="/account/reauth" element={<ReauthPage/>}/><Route path="/account/email" element={<EmailLinkPage/>}/>
+  <Route path="/settings" element={<Navigate to="/account" replace/>}/><Route path="*" element={<Shell/>}/>
+</Routes></BrowserRouter>;}
