@@ -2,4 +2,5 @@ import type { Principal } from '../auth/principal.js';
 export function isAuthenticated(principal: Principal | null): principal is Principal {
   return principal !== null;
 }
-// Per-child grants and consent will be implemented in P03 before business data is served.
+// P03 business authorization lives in server/family and the forced-RLS SQL policy helpers.
+// Authentication alone never grants access to a family or child.

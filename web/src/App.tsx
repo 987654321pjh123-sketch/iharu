@@ -9,6 +9,8 @@ import { Guardian } from './pages/Guardian';
 import { ChildHome } from './pages/ChildHome';
 import { Upcoming } from './pages/Upcoming';
 import { LoginPage, PhonePage } from './pages/Login';
+import { FamilyPage,FamilyInvitePage } from './pages/Family';
+import { DeviceConnectPage,ConnectedChildPage } from './pages/Device';
 import { AccountPage, ReauthPage, EmailLinkPage } from './pages/Account';
 const healthResponse=envelope(healthSchema);
 const guardianNav: {to:string;label:string;icon:IconName}[]=[{to:'/today',label:'오늘',icon:'home'},{to:'/location',label:'아이 위치',icon:'pin'},{to:'/chat',label:'가족 대화',icon:'chat'},{to:'/records',label:'기록',icon:'book'}];
@@ -44,6 +46,8 @@ function Shell() {
 }
 export default function App(){return <BrowserRouter><Routes>
   {['/login','/signup','/forgot-password','/verify-email','/reset-password'].map(path=><Route key={path} path={path} element={<LoginPage key={path}/>}/>)}
+  <Route path="/family" element={<FamilyPage/>}/><Route path="/family/invite" element={<FamilyInvitePage/>}/>
+  <Route path="/device/connect" element={<DeviceConnectPage/>}/><Route path="/child/connected" element={<ConnectedChildPage/>}/>
   <Route path="/phone" element={<PhonePage/>}/><Route path="/account" element={<AccountPage/>}/>
   <Route path="/account/reauth" element={<ReauthPage/>}/><Route path="/account/email" element={<EmailLinkPage/>}/>
   <Route path="/settings" element={<Navigate to="/account" replace/>}/><Route path="*" element={<Shell/>}/>

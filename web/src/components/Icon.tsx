@@ -14,6 +14,7 @@ const paths = {
   settings:<><circle cx="12" cy="12" r="3"/><path d="m9 3-1 3-3 1-2 3 2 2-1 4 3 2 3-1 3 4 3-2 1-3 4-2-1-4-3-1-1-4Z"/></>,
   clock:<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   bag:<><rect x="5" y="7" width="14" height="14" rx="3"/><path d="M9 7V5a3 3 0 0 1 6 0v2M5 12h14m-9 0v3h4v-3"/></>,
+  device:<><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 5h4m-3 14h2"/></>,
   phone:<path d="M7 3H4a1 1 0 0 0-1 1c0 10 7 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a15 15 0 0 1-7-7l2-2Z"/>,
   arrival:<><path d="M14 3h6v18h-6M3 12h12m-4-4 4 4-4 4"/></>,
   departure:<><path d="M10 3H4v18h6m0-9h11m-4-4 4 4-4 4"/></>,
