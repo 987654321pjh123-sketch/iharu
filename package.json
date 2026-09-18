@@ -10,7 +10,7 @@
     "dev": "concurrently -k -n api,web 'npm:dev:api' 'npm:dev:web'",
     "dev:api": "node --watch --import tsx --env-file-if-exists=.env.local server/dev.ts",
     "dev:web": "vite --host 0.0.0.0",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json",
     "build": "npm run typecheck && vite build",
     "start": "node --import tsx --env-file-if-exists=.env.local server/preview.ts",
     "test": "vitest run",
