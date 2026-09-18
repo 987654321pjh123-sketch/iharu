@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { Kysely,PostgresDialect } from 'kysely';
 import { assertFamilyDatabaseRole } from './database.js';
+import { databaseFailureReason } from '../adapters/database-errors.js';
 import { FamilyService } from './service.js';
 let service:Promise<FamilyService|null>|undefined;
 export function getFamilyRuntime():Promise<FamilyService|null>{
@@ -15,8 +16,9 @@ export function getFamilyRuntime():Promise<FamilyService|null>{
   const db=new Kysely<Record<string,never>>({dialect:new PostgresDialect({pool})});
   try{
    await assertFamilyDatabaseRole(db);
+   console.info('FAMILY_DATABASE_CHECK_OK');
    return new FamilyService(db,secret);
   }catch(e){await db.destroy();throw e;}
- })().catch(()=>{service=undefined;console.error('FAMILY_RUNTIME_UNAVAILABLE');return null;});
+ })().catch(error=>{service=undefined;console.error(JSON.stringify({code:'FAMILY_RUNTIME_UNAVAILABLE',reason:databaseFailureReason(error)}));return null;});
  return service;
 }
