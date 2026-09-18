@@ -9,6 +9,7 @@
   "regions": [
     "icn1"
   ],
+  "crons": [{ "path": "/api/internal/schedule-maintenance", "schedule": "15 * * * *" }],
   "functions": {
     "api/index.ts": {
       "maxDuration": 15

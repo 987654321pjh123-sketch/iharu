@@ -12,6 +12,7 @@ import { LoginPage, PhonePage } from './pages/Login';
 import { FamilyPage,FamilyInvitePage } from './pages/Family';
 import { DeviceConnectPage,ConnectedChildPage } from './pages/Device';
 import { AccountPage, ReauthPage, EmailLinkPage } from './pages/Account';
+import {SchedulePage,ChildSchedulePage} from './pages/Schedules';
 const healthResponse=envelope(healthSchema);
 const guardianNav: {to:string;label:string;icon:IconName}[]=[{to:'/today',label:'오늘',icon:'home'},{to:'/location',label:'아이 위치',icon:'pin'},{to:'/chat',label:'가족 대화',icon:'chat'},{to:'/records',label:'기록',icon:'book'}];
 const childNav:typeof guardianNav=[{to:'/child',label:'내 하루',icon:'home'},{to:'/child/chat',label:'가족 대화',icon:'chat'}];
@@ -35,16 +36,15 @@ function Shell() {
       <div className="top-actions"><button className="font-toggle" aria-pressed={large} onClick={()=>setLarge(v=>!v)}><Icon name="type"/><span>큰 글씨</span></button>{!isChild&&<><Link className="icon-button" to="/notifications" aria-label="알림함"><Icon name="bell"/></Link><Link className="profile-button" to="/settings" aria-label="가족 설정">가</Link></>}</div></header>
       {demo && <div className="demo-bar"><span><span className="demo-dot"/>{copy.demo}</span><div className="preview-toggle" aria-label="미리보기 화면 선택"><Link to="/today" aria-current={!isChild?'page':undefined}>보호자 화면</Link><Link to="/child" aria-current={isChild?'page':undefined}>아이 화면</Link></div></div>}
       <main id="main" tabIndex={-1} className="main">
-        {health.loading?<Loading label="아이하루를 열고 있어요"/>:health.error?<ErrorState message="서버 연결을 확인하고 다시 시도해 주세요." retry={health.retry}/>:!demo?<div className="upcoming-page"><span className="upcoming-icon"><Icon name="sun"/></span><h1>아이하루를 준비하고 있어요</h1><p>가족과 함께할 하루를 곧 만나 보세요.</p></div>:<Routes>
-          <Route path="/" element={<Navigate to="/today" replace/>}/>
-          {['/today','/calendar','/tuition'].map(path=><Route key={path} path={path} element={<Guardian child={child} setChild={setChild} onPreview={setDialog}/>}/>)}
-          <Route path="/child" element={<ChildHome onPreview={setDialog}/>}/><Route path="*" element={<Upcoming/>}/>
-        </Routes>}
+        {health.loading?<Loading label="아이하루를 열고 있어요"/>:health.error?<ErrorState message="서버 연결을 확인하고 다시 시도해 주세요." retry={health.retry}/>:!demo?<div className="upcoming-page"><span className="upcoming-icon"><Icon name="sun"/></span><h1>아이하루를 준비하고 있어요</h1><p>가족과 함께할 하루를 곧 만나 보세요.</p></div>:pathname==='/'?<Navigate to="/today" replace/>:['/today','/calendar','/tuition'].includes(pathname)?<Guardian child={child} setChild={setChild} onPreview={setDialog}/>:pathname==='/child'?<ChildHome onPreview={setDialog}/>:<Upcoming/>}
       </main><footer className="page-footer">아이하루 · 가족의 하루를 잇다<span>화면 미리보기 · 실제 전송 및 저장 없음</span></footer>
     </div>{demo&&navigation('bottom-nav')}{dialog&&<PreviewDialog title={dialog} onClose={()=>setDialog(null)}/>}
   </div>;
 }
 export default function App(){return <BrowserRouter><Routes>
+  <Route path="/today/calendar" element={<SchedulePage/>}/><Route path="/today/repeats" element={<SchedulePage mode="repeats"/>}/>
+  <Route path="/child/schedules" element={<ChildSchedulePage/>}/>
+  <Route path="/calendar" element={<ScheduleAlias/>}/><Route path="/repeats" element={<ScheduleAlias repeats/>}/>
   {['/login','/signup','/forgot-password','/verify-email','/reset-password'].map(path=><Route key={path} path={path} element={<LoginPage key={path}/>}/>)}
   <Route path="/family" element={<FamilyPage/>}/><Route path="/family/invite" element={<FamilyInvitePage/>}/>
   <Route path="/device/connect" element={<DeviceConnectPage/>}/><Route path="/child/connected" element={<ConnectedChildPage/>}/>
@@ -52,3 +52,4 @@ export default function App(){return <BrowserRouter><Routes>
   <Route path="/account/reauth" element={<ReauthPage/>}/><Route path="/account/email" element={<EmailLinkPage/>}/>
   <Route path="/settings" element={<Navigate to="/account" replace/>}/><Route path="*" element={<Shell/>}/>
 </Routes></BrowserRouter>;}
+function ScheduleAlias({repeats=false}:{repeats?:boolean}){const health=useApi('/api/health',healthResponse);if(health.loading)return <Loading/>;if(health.data?.data.demoEnabled)return <Shell/>;return <Navigate to={repeats?'/today/repeats':'/today/calendar'} replace/>;}

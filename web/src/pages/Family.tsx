@@ -9,7 +9,7 @@ import {AuthLayout,FormNotice} from '../components/AuthLayout';
 import {Loading,ErrorState} from '../components/Common';
 import {Icon} from '../components/Icon';
 function useFamilyAction(){const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');return {busy,error,message,setMessage,async run(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');setMessage('');try{await fn();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}};}
-function FamilyNav(){return <nav className="family-nav" aria-label="가족과 계정"><Link to="/family" aria-current="page"><Icon name="home"/>우리 가족</Link><Link to="/device/connect"><Icon name="device"/>아이 기기 연결</Link><Link to="/account"><Icon name="settings"/>내 계정</Link></nav>;}
+function FamilyNav(){return <nav className="family-nav" aria-label="가족과 계정"><Link to="/family" aria-current="page"><Icon name="home"/>우리 가족</Link><Link to="/today/calendar"><Icon name="calendar"/>가족 달력</Link><Link to="/device/connect"><Icon name="device"/>아이 기기 연결</Link><Link to="/account"><Icon name="settings"/>내 계정</Link></nav>;}
 export function FamilyPage(){
  const session=useApi('/api/account/session',sessionSchema);
  if(session.loading)return <AuthLayout wide><Loading label="가족 연결을 확인하고 있어요"/></AuthLayout>;
@@ -47,7 +47,7 @@ function FamilyDetail({family,refresh}:{family:Family;refresh:()=>void}){
  <details className="family-advanced"><summary>가족 운영권 이전</summary><p>초대와 참여 승인을 맡을 보호자를 바꿔요. 아이 공유 권한은 그대로예요.</p><label htmlFor="next-owner">새 운영자</label><select id="next-owner" value={ownerTarget} onChange={e=>setOwnerTarget(e.target.value)}><option value="">보호자를 선택해 주세요</option>{members.data?.members.filter(m=>!m.owner&&m.status==='ACTIVE').map(m=><option key={m.id} value={m.memberId}>{m.name}</option>)}</select><button className="button full" disabled={!ownerTarget||action.busy} onClick={()=>{if(window.confirm('선택한 보호자에게 가족 운영권을 이전할까요?'))void action.run(async()=>{await familyRequest(`/api/v1/families/${family.id}/owner`,{memberId:ownerTarget,expectedVersion:family.version});reload();});}}>운영권 이전</button></details></>}
  </section></div>
  {draft&&<ChildRegistration key={draft} familyId={family.id} draftId={draft} close={()=>setDraft(null)} done={()=>{setDraft(null);children.retry();}}/>}
- {selected&&(selected.canManage?<ChildManagement key={selected.id} child={selected} refresh={children.retry}/>:<section className="account-card"><h2>{selected.nickname}</h2><p>공유받은 정보는 일정과 대화 메뉴에서 확인할 수 있어요. 해당 메뉴는 다음 단계에서 연결합니다.</p></section>)}
+ {selected&&(selected.canManage?<ChildManagement key={selected.id} child={selected} refresh={children.retry}/>:<section className="account-card"><h2>{selected.nickname}</h2><p>공유받은 일정은 가족 달력에서 확인할 수 있어요. 대화는 다음 단계에서 연결합니다.</p></section>)}
  </>;
 }
 function ChildRegistration({familyId,draftId,close,done}:{familyId:string;draftId:string;close:()=>void;done:()=>void}){

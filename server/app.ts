@@ -11,6 +11,8 @@ import { isAuthenticated } from './policy/access.js';
 import { accountRoutes } from './auth/routes.js';
 import { getAuthRuntime } from './auth/runtime.js';
 import type { AuthService } from './auth/service.js';
+import { scheduleRoutes } from './schedules/routes.js';
+import { scheduleCron } from './schedules/cron.js';
 
 export function createApp(config: AppConfig = readConfig(), authRuntime: () => AuthService | null = getAuthRuntime, familyRuntime: () => Promise<FamilyService | null> = getFamilyRuntime) {
   const app = new Hono<{ Variables: { requestId: string } }>();
@@ -23,7 +25,7 @@ export function createApp(config: AppConfig = readConfig(), authRuntime: () => A
   });
   const meta = (requestId: string, source: 'system' | 'demo') => ({ requestId, source, serverNow: new Date().toISOString() });
   app.get('/api/health', c => c.json(envelope(healthSchema).parse({
-    data:{ status:'ok', phase:'P03', environment:config.environment, demoEnabled:config.demoEnabled && config.environment !== 'production' },
+    data:{ status:'ok', phase:'P04', environment:config.environment, demoEnabled:config.demoEnabled && config.environment !== 'production' },
     meta:meta(c.get('requestId'), 'system'),
   })));
   app.get('/api/demo/dashboard', c => {
@@ -36,6 +38,8 @@ export function createApp(config: AppConfig = readConfig(), authRuntime: () => A
   });
   app.route('/', accountRoutes(authRuntime));
   app.route('/', familyRoutes(authRuntime,familyRuntime));
+  app.route('/', scheduleRoutes(authRuntime,familyRuntime));
+  app.route('/', scheduleCron());
   app.all('/api/v1/*', async c => {
     const principal = await resolvePrincipal(c.req.raw, authRuntime());
     if (!isAuthenticated(principal)) return c.json({ error:{ code:'AUTH_REQUIRED', message:'로그인이 필요해요.' }, requestId:c.get('requestId') }, 401);

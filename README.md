@@ -1,6 +1,6 @@
 # 아이하루
 
-제품 기준 6.1 · P01 공통 화면 + P02 로그인·계정 + P03 가족·아이·기기 연결 구현.
+제품 기준 6.1 · P01 공통 화면 + P02 로그인·계정 + P03 가족·아이·기기 연결 + P04 반복 일정·공휴일 구현.
 
 ```sh
 npm ci
@@ -32,7 +32,20 @@ Node.js 24 / React·Vite·TypeScript / 동일 도메인 Hono / Supabase PostgreS
 
 **현재 운영 연결 제한:** 업무·인증 DB는 연결되어 있습니다. 메일·문자·소셜 로그인 공급자와 실제 본인확인·법정대리 관계 확인 수단은 아직 연결하지 않았습니다. `access_ready`를 화면에서 올리는 경로, 가짜 관계 인증 콜백은 제공하지 않습니다. `/api/v1/setup`은 실제 아동 등록 준비 상태를 false로 반환합니다. 관계 확인 어댑터·정책·삭제 운영 경로를 완성하기 전 실제 아이 등록을 공개하지 않습니다. 테스트의 `__test__` 엔드포인트는 별도 로컬 서버에만 존재하며 배포 번들에서 참조하지 않습니다.
 
-**P04 착수 범위:** 현재 가족·아이별 권한 기반 위에서 가상 가족 데이터를 사용하는 격리된 개발·테스트 환경으로 반복 일정과 공휴일 기능을 진행할 수 있습니다. 공급자 연결 대기는 이 개발을 막지 않으며, 운영에서 권한·관계 확인을 우회하지 않습니다. 공휴일 공급자 연결 전에는 테스트 자료와 조회 실패·확인 필요 상태를 구현합니다. 반복 일정은 주 단위·최대 1년·56일 조회 범위, 이번만/이번 및 이후 수정, 과거 기록 보존, 공휴일 KEEP/SKIP/ASK(기본 ASK)를 기준으로 합니다. 이는 P02/P03의 실제 서비스 개통 완료를 뜻하지 않습니다.
+### P04 반복 일정과 공휴일
+
+- 보호자 `/today/calendar` 가족 달력, `/today/repeats` 반복 일정·휴강·방학, 아이 `/child/schedules` 본인 일정 조회를 구현했습니다. `/calendar`, `/repeats`는 운영에서 해당 실제 화면으로 연결됩니다. 밝은 반응형 화면, 큰 글씨, 날짜 방향키 이동, 날짜별 상세와 폼 입력 보존을 지원합니다.
+- 한 번/매주 반복, 한국 날짜·시각 입력 및 UTC 저장, 최대 1년 기간, 앞으로 56일 회차 생성과 최대 56일 단위 조회입니다. 조회 과거 범위는 90일입니다. 가족별·아이별 일정 공유 권한을 확인하며 아이 기기는 자기 일정만 읽습니다.
+- 이번만/이번 및 이후 변경은 버전 번호와 5분 미리보기에 결합합니다. 이미 예약한 미래 변경은 유지/대체를 선택합니다. 반복 요일·시간·공휴일 정책·종료일을 바꿀 수 있습니다. 취소·휴강·보강은 원래 회차 ID와 이력을 보존합니다. 개별 예외와 지난·연결 기록은 반복 변경으로 덮어쓰지 않습니다.
+- 기관 휴강·방학은 국가 공휴일과 분리합니다. 공휴일은 KEEP/SKIP/ASK(기본 ASK)이고, 자료 미수집·갱신 실패는 ‘확인 필요’입니다. 명시적 보호자 결정은 유지합니다. 새로 지정된 공휴일은 재확인을 요구하며 과거 회차를 소급 취소하지 않습니다. 확인 필요·취소·휴강 회차는 미출석 알림 대상에서 제외해야 합니다.
+- KASI 특일정보 `/getRestDeInfo`의 연도 자료를 서버에서 파싱·검증하고 마지막 정상 캐시를 보존합니다. 자료가 없거나 일부만 왔을 때 ‘공휴일 없음’으로 확정하지 않습니다. 연도별 하루 1회 성공 수집, 실패 시 다음 시간대 재시도, DB lease로 중복 실행을 제한합니다. 표시에 수집 상태·마지막 수집 시각을 포함합니다.
+- 공휴일 API 키와 작업 DB 연결 전에도 격리된 가상 가족 환경에서 기능을 검증할 수 있습니다. 실제 로그인·보호자 관계 검증 공급자는 별도 연결 대상이며 운영 우회 경로는 없습니다.
+
+자동 수집 설정은 Vercel 서버 전용 `HOLIDAY_API_KEY`(공공데이터포털의 **Decoding 키**), `WORKER_DATABASE_URL`(`worker_runtime`만 상속하는 별도 비소유자 로그인), `CRON_SECRET`(32자 이상 난수)이 필요합니다. 앱·인증 DB URL이나 관리자 계정을 작업 계정으로 재사용하지 않습니다. 값은 채팅이나 저장소가 아닌 Vercel에 입력합니다. 키 발급·실제 API 성공 수집은 별도 확인해야 합니다.
+
+`vercel.json`의 `/api/internal/schedule-maintenance`는 매시 15분(UTC)에 실행합니다. DB가 일별 수집·56일 확장 작업을 중복 방지하고 한 번에 최대 50개 반복 일정을 처리합니다. 조회 시 필요한 회차도 보충합니다. Cron은 비밀 미설정/불일치 401, 작업 계정 미설정 503을 반환합니다. 환경변수 설정 후 재배포하고 승인된 작업 호출의 수집 결과와 달력의 수집 시각을 확인합니다. 현재 공급자 값 미연결 상태를 수집 성공으로 표시하지 않습니다.
+
+P05 연계: 등하원 또는 완료된 픽업 기록을 연결할 때 같은 트랜잭션에서 `app.occurrences.protected_at`을 설정하고 회차 FK를 유지해야 합니다. P07 연계: 같은 트랜잭션에 기록한 `app_private.schedule_events`의 소비자·전송 작업은 아직 없습니다. 이벤트는 아이·대상 ID와 버전만 담고 민감한 일정 본문을 넣지 않습니다. P11/P12 삭제·복원 절차는 이 P04 테이블도 포함해야 합니다.
 
 ### DB 권한과 운영 연결
 
@@ -81,7 +94,8 @@ npm run db:migrate
 - `0001`: 기존 비공개 app 경계. 이미 적용된 SQL은 수정하지 않았습니다.
 - `0002`: Better Auth 1.7.5 `getMigrations`로 생성한 인증 테이블. 수작업 변경 금지.
 - `0003`: 회원 상태, 세션 수준·최종 활동, OTP/발송 제한, 이메일 연결, 복구 접수. `auth_runtime` 역할이 있으면 인증 스키마 권한만 부여합니다.
-- `20260918101719_p03_function_privileges`: P03 함수 실행 권한 보완. 운영의 총 7개 마이그레이션 적용 내역과 저장소 체크섬 일치를 확인했습니다.
+- `20260918101719_p03_function_privileges`: P03 함수 실행 권한 보완. 기존 7개 마이그레이션은 변경하지 않습니다.
+- `20260918151925_p04_schedules`: 기간별 반복 버전, 고정 회차 ID, 개별 예외·기관 휴무, 공휴일 캐시·lease, 미리보기·멱등 원장·이벤트를 추가합니다. 이 8번째 마이그레이션을 P04 코드 배포보다 먼저 적용합니다.
 - `AUTH_DATABASE_URL`에 관리자·테이블 소유자·BYPASSRLS 계정을 쓰지 않습니다. `APP_DATABASE_URL`은 자녀 업무용이며 0004~0006의 RLS·역할·동의 정책과 실제 검증·삭제 운영 경로 준비 전 실제 아동 데이터를 저장하지 않습니다.
 - 적용된 SQL의 체크섬 변경은 실행기가 거절합니다. 마이그레이션은 Vercel 빌드/웹 요청에서 자동 실행하지 않습니다.
 
@@ -106,7 +120,7 @@ npm run test:e2e
 
 API 테스트는 격리된 PGlite PostgreSQL 엔진에 **운영 SQL 마이그레이션과 실제 Better Auth**를 실행합니다. 발송만 테스트 내 수신함으로 대체합니다. 이 어댑터는 운영 요청 경로에서 불러오지 않습니다. GitHub Actions에서는 별도 PostgreSQL 17로 RLS·역할 경계와 여러 연결의 경합도 검사합니다. 운영 Supabase 실제 접속·TLS·역할 권한은 확인했으며, OAuth 공급자 로그인·취소·명시적 연결 왕복과 실제 메일·SMS 수신은 외부 연결 후 추가 검증 대상입니다.
 
-브라우저 테스트는 P01 화면과 P02 인증·P03 가족 연결 화면의 경로·준비 상태·320~1440px 화면·큰 글씨·키보드 및 콘솔 오류를 검사합니다. 별도 로컬 테스트 서버(4174)에서 브라우저 가입 → 테스트 수신함의 이메일 확인 → 실제 API 로그인 → 새로고침 → 마지막 수단 보호 → 전체 로그아웃도 확인합니다. 테스트 서버는 배포 API에서 참조하지 않습니다. 한글 폰트는 OFL 라이선스의 Noto Sans KR을 같은 도메인에서 제공합니다.
+브라우저 테스트는 P01 화면과 P02 인증·P03 가족 연결·P04 일정 저장/확인/수정/휴무 화면의 경로·준비 상태·320~1440px 화면·큰 글씨·키보드 및 콘솔 오류를 검사합니다. 별도 로컬 테스트 서버(4174)에서 브라우저 가입 → 테스트 수신함의 이메일 확인 → 실제 API 로그인 → 새로고침 → 마지막 수단 보호 → 전체 로그아웃도 확인합니다. 테스트 서버는 배포 API에서 참조하지 않습니다. 한글 폰트는 OFL 라이선스의 Noto Sans KR을 같은 도메인에서 제공합니다.
 
 ## 자동 배포
 
@@ -121,8 +135,10 @@ API 테스트는 격리된 PGlite PostgreSQL 엔진에 **운영 SQL 마이그레
 
 브라우저 검사는 GitHub의 추가 검사이며 Vercel 배포를 차단하는 필수 검사로 연결하지 않았습니다. 운영 주소는 [iharu.vercel.app](https://iharu.vercel.app/login), 함수는 Node 24·서울 `icn1`입니다. 배포 성공은 해당 Git SHA와 READY 상태로 판단합니다. 외부 인증 연결 완료 여부는 별도로 판단합니다.
 
-코드 경계: `web/src` / `server/family` / `server/auth` / `server/policy` / `server/domain` / `server/adapters` / `shared` / `db/migrations`.
+코드 경계: `web/src` / `server/family` / `server/schedules` / `server/auth` / `server/policy` / `server/domain` / `server/adapters` / `shared` / `db/migrations`.
 
 공식 참조: [Better Auth 계정 연결](https://better-auth.com/docs/concepts/users-accounts), [전화번호 플러그인](https://better-auth.com/docs/plugins/phone-number), [PostgreSQL](https://better-auth.com/docs/adapters/postgresql), [Resend 발송 API](https://resend.com/docs/api-reference/emails/send-email), [SOLAPI](https://solapi.com/developers), [Vercel Git 배포](https://vercel.com/docs/git).
 
 P03 SQL 보안 참고: [PostgreSQL RLS](https://www.postgresql.org/docs/current/ddl-rowsecurity.html), [SECURITY DEFINER 함수](https://www.postgresql.org/docs/current/sql-createfunction.html).
+
+P04 공휴일 원본: [한국천문연구원 특일 정보](https://www.data.go.kr/data/15012690/openapi.do). 공휴일 이름·날짜는 API 원본을 사용하며 음력 명절을 클라이언트에서 계산하지 않습니다.
