@@ -7,6 +7,8 @@ import {Kysely,PostgresDialect} from 'kysely';
 import {openAuthDatabase,query,type AuthDatabase} from '../../server/auth/database.js';
 import {createAuthService} from '../../server/auth/service.js';
 import {createApp} from '../../server/app.js';
+import {ScheduleService} from '../../server/schedules/service.js';
+import {addDays,koreaToday,type CalendarData,type ChangePreview} from '../../shared/schedules.js';
 import {FamilyService,type FamilyActor} from '../../server/family/service.js';
 import {assertFamilyDatabaseRole} from '../../server/family/database.js';
 
@@ -101,6 +103,31 @@ try{
  });
  await check('concurrent different pairings cannot exceed two active devices',async()=>{
   const p=await pairing(),q=await pairing();const result=await Promise.allSettled([family1.command(anonymous,'pair.exchange',{...p,deviceHash:family1.digest('device-3'),sealed:family1.seal('cookie-3')}),family2.command(anonymous,'pair.exchange',{...q,deviceHash:family1.digest('device-4'),sealed:family1.seal('cookie-4')})]);assert.equal(result.filter(r=>r.status==='fulfilled').length,1);const rejected=result.find(r=>r.status==='rejected');assert(rejected?.status==='rejected');assert.equal(rejected.reason.message,'DEVICE_LIMIT');assert.equal((await admin.query('SELECT id FROM app.child_devices WHERE child_id=$1',[childId])).rowCount,2);
+ });
+ const schedules1=new ScheduleService(family1),schedules2=new ScheduleService(family2);
+ const scheduleToday=koreaToday(),scheduleDate=addDays(scheduleToday,1),scheduleEnd=addDays(scheduleToday,40);
+ const schedulePayload={childId,title:'가상 반복 일정',place:'가상 교실',date:scheduleDate,untilDate:scheduleEnd,startTime:'15:00',endTime:'16:00',frequency:'WEEKLY',weekdays:[0,1,2,3,4,5,6],holidayPolicy:'ASK',key:randomUUID()};
+ await check('P04 concurrent retries create one series and expansion preserves unique occurrence IDs',async()=>{
+  const results=await Promise.all([schedules1.command(a,'create',schedulePayload),schedules2.command(a,'create',schedulePayload)]);assert.deepEqual(results[0],results[1]);
+  assert.equal((await admin.query('SELECT id FROM app.schedule_series WHERE child_id=$1',[childId])).rowCount,1);
+  const lists=await Promise.all([schedules1.command<CalendarData>(a,'calendar',{familyId:fid,from:scheduleToday,to:scheduleEnd,limit:50}),schedules2.command<CalendarData>(a,'calendar',{familyId:fid,from:scheduleToday,to:scheduleEnd,limit:50})]);
+  assert.equal(lists[0].occurrences.length,40);assert.deepEqual(lists[0].occurrences.map(o=>o.id),lists[1].occurrences.map(o=>o.id));
+ });
+ await check('P04 simultaneous confirmed edits accept only one expected version and replay its response',async()=>{
+  const calendar=await schedules1.command<CalendarData>(a,'calendar',{familyId:fid,from:scheduleToday,to:scheduleEnd,limit:50}),o=calendar.occurrences[0];
+  const inputs=['동시 수정 A','동시 수정 B'].map(title=>({occurrenceId:o.id,scope:'ONE',effectiveDate:o.anchorDate,expectedVersion:o.resourceVersion,changes:{title}}));
+  const previews=await Promise.all(inputs.map((p,i)=>(i?schedules2:schedules1).command<ChangePreview>(a,'preview',p)));
+  const bodies=inputs.map((p,i)=>({...p,previewToken:previews[i].previewToken,key:randomUUID()}));
+  const edits=await Promise.allSettled(bodies.map((p,i)=>(i?schedules2:schedules1).command(a,'change',p)));
+  assert.equal(edits.filter(r=>r.status==='fulfilled').length,1);const failed=edits.find(r=>r.status==='rejected');assert(failed?.status==='rejected');assert.equal(failed.reason.message,'VERSION_CONFLICT');
+  const index=edits.findIndex(r=>r.status==='fulfilled'),success=edits[index];assert(success.status==='fulfilled');assert.deepEqual(await schedules2.command(a,'change',bodies[index]),success.value);
+ });
+ await check('P04 schedule roles deny cross-family access, direct writes and worker function execution',async()=>{
+  const visible=await schedules2.command<CalendarData>(b,'calendar',{familyId:fid,from:scheduleToday,to:scheduleEnd,limit:50});assert.equal(visible.occurrences.length,0);
+  assert.equal((await query(db1,'SELECT id FROM app.occurrences')).length,0);
+  await assert.rejects(query(db1,"UPDATE app.occurrences SET title='denied'"),{code:'42501'});
+  const [acl]=await query<{worker:boolean}>(db1,"SELECT has_function_privilege(current_user,'app_private.schedule_maintenance()','EXECUTE') worker");assert.equal(acl.worker,false);
+  await assert.rejects(admin.query('INSERT INTO app.schedule_series(family_id,child_id,first_date,last_date) VALUES($1,$2,$3,$3)',[fidB,childId,scheduleDate]),{code:'23503'});
  });
  await check('committed general withdrawal immediately denies both runtime connections and records durable work',async()=>{
   await family1.command(a,'consent.revoke',{childId,purpose:'general',expectedVersion:1});
