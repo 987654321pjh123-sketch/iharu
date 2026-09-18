@@ -6,6 +6,7 @@ const transportCodes = new Set([
 ]);
 const configurationCodes = new Set([
   'DATABASE_ROLES_MUST_DIFFER', 'UNSAFE_APP_DATABASE_ROLE', 'INVALID_AUTH_CONFIGURATION',
+  'UNSAFE_DATABASE_TLS_CONFIGURATION', 'INVALID_DATABASE_PROTOCOL',
 ]);
 
 // Never serialize database errors: messages/stacks can contain credentials,

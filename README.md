@@ -36,6 +36,10 @@ Node.js 24 / React·Vite·TypeScript / 동일 도메인 Hono / Supabase PostgreS
 
 `APP_DATABASE_URL`은 `app_runtime` 권한만 가진 별도 로그인 역할을 사용합니다. `AUTH_DATABASE_URL`, `WORKER_DATABASE_URL`, `MIGRATION_DATABASE_URL`과 공유하지 않습니다. 업무 런타임은 시작 시 소유자·SUPERUSER·BYPASSRLS·정책 함수 소유 역할의 상속을 검사합니다.
 
+Supabase DB TLS 연결은 공식 CLI의 공개 Production CA(2021·2025)를 서버 코드에 포함해 인증서 체인과 호스트명을 검증합니다. 인증서 원본 commit은 `server/adapters/supabase-ca.ts`에 기록되어 있습니다. 별도 비밀 환경변수나 런타임 다운로드는 필요하지 않습니다. `rejectUnauthorized:false`, `sslmode=no-verify`, `NODE_TLS_REJECT_UNAUTHORIZED=0`으로 우회하지 않습니다. CA 갱신 시 공식 원본·유효기간을 확인하고 테스트 후 배포합니다.
+
+운영 연결 확인: `/api/account/providers`와 `/api/v1/child-session` 조회 후 Vercel 비공개 로그의 `AUTH_DATABASE_CHECK_OK`, `FAMILY_DATABASE_CHECK_OK`를 확인합니다. 인증 없는 아이 세션 조회의 `DEVICE_REQUIRED`(401)는 정상입니다. 로그인 공급자 설정은 DB 연결과 별개이며, 모든 공급자가 비활성이라는 응답만으로 DB 연결 성공을 판단하지 않습니다. 실패 시 `*_CHECK_FAILED` 또는 `FAMILY_RUNTIME_UNAVAILABLE`의 `reason`만 확인하며 비밀번호·접속 URL은 로그에 남기지 않습니다.
+
 - `0004`: 가족·membership·아이·consent·grant·방·기기에 강제 RLS, 복합 가족 FK. 앱 런타임은 제한된 SELECT와 명령 함수 실행만 가능하며 직접 정책 테이블 수정은 불가합니다.
 - `0005`: 현재 인증 DB 상태를 재확인하는 명령 함수. `iharu_policy`는 로그인 불가·BYPASSRLS 없는 전용 함수 소유자이며 모든 함수는 고정 search_path를 사용합니다. 이 역할을 런타임 역할에 상속하지 않습니다.
 - `0006`: 별도 검증 계정용 관계 결과 적용 함수, 범위별 철회 원장 이벤트, 만료 비밀 정리 함수. `verification_runtime`/`worker_runtime` 역할이 사전에 존재할 때만 필요한 함수 실행 권한을 부여합니다. 역할을 나중에 만들면 관리자가 해당 최소 권한을 별도로 부여해야 합니다.
