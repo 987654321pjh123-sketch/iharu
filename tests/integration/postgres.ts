@@ -8,6 +8,7 @@ import {openAuthDatabase,query,type AuthDatabase} from '../../server/auth/databa
 import {createAuthService} from '../../server/auth/service.js';
 import {createApp} from '../../server/app.js';
 import {FamilyService,type FamilyActor} from '../../server/family/service.js';
+import {assertFamilyDatabaseRole} from '../../server/family/database.js';
 
 const raw=process.env.IHARU_CI_DATABASE_URL;
 if(!raw||process.env.CI!=='true')throw new Error('CI_DATABASE_REQUIRED');
@@ -43,6 +44,11 @@ try{
  const secret=randomBytes(32).toString('hex'),family1=new FamilyService(db1,secret),family2=new FamilyService(db2,secret),origin='http://localhost:4173';
  const svc=createAuthService({origin,secret,databaseUrl:'test-only',mail:{key:'test-only',from:'test@example.test'},sms:null,social:{}},authdb,{sendMail:async()=>{},sendSms:async()=>{}});
  const app=createApp({environment:'local',demoEnabled:false},()=>svc,async()=>family1);
+ await check('runtime role guard accepts the isolated app role without auth schema access',async()=>{
+  await assertFamilyDatabaseRole(db1);
+  await assert.rejects(query(db1,'SELECT id FROM iharu_auth.members LIMIT 1'),{code:'42501'});
+  await assert.rejects(assertFamilyDatabaseRole(authdb));
+ });
  await check('non-superuser migrations restrict verification and maintenance to their intended roles',async()=>{
   const [acl]=await query<{verify:boolean;maintain:boolean;command:boolean}>(db1,`SELECT has_function_privilege(current_user,'app_private.record_relationship_result(uuid,text,text,date,text,boolean)','EXECUTE') AS verify,has_function_privilege(current_user,'app_private.expire_family_secrets()','EXECUTE') AS maintain,has_function_privilege(current_user,'app_private.family_command(text,jsonb)','EXECUTE') AS command`);
   assert.deepEqual(acl,{verify:false,maintain:false,command:true});
