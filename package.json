@@ -19,7 +19,9 @@
     "build:deploy": "npm run check",
     "deploy:connect": "node scripts/connect-deployment.mjs",
     "db:check": "node --import tsx --env-file-if-exists=.env.local scripts/db-check.ts",
-    "db:migrate": "node --import tsx --env-file-if-exists=.env.local scripts/migrate.ts"
+    "db:migrate": "node --import tsx --env-file-if-exists=.env.local scripts/migrate.ts",
+    "setup:check": "node --import tsx --env-file-if-exists=.env.local scripts/setup-check.ts",
+    "test:postgres": "node --import tsx tests/integration/postgres.ts"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-kr": "5.3.0",
