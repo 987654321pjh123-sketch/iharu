@@ -84,9 +84,12 @@ export function createAuthService(settings: AuthSettings, db: AuthDatabase, deli
           VALUES ($1,$2,$3,$4,$5)`, [session.id, high ? 'HIGH' : 'LOW', high ? time : null, time, new Date(+time + MAX_SESSION_MS)]);
       } } },
       account: { create: { before: async (account, ctx) => {
-        const existing = await query(db, 'SELECT id FROM iharu_auth.account WHERE "userId"=$1', [account.userId]);
-        const [user] = await query<{ phoneNumberVerified: boolean }>(db, 'SELECT "phoneNumberVerified" FROM iharu_auth."user" WHERE id=$1', [account.userId]);
-        if (existing.length || user?.phoneNumberVerified) {
+        // Reuse Better Auth's active transaction. Taking another pooled connection here
+        // can deadlock simultaneous signups and cannot see the uncommitted new user.
+        const adapter = ctx?.context.internalAdapter ?? (await auth.$context).internalAdapter;
+        const existing = await adapter.findAccounts(account.userId);
+        const user = await adapter.findUserById(account.userId);
+        if (existing.length || (user && 'phoneNumberVerified' in user && user.phoneNumberVerified === true)) {
           const s = ctx?.headers ? await auth.api.getSession({ headers: ctx.headers, query: { disableCookieCache: true, disableRefresh: true } }) : null;
           if (!s || s.user.id !== account.userId) policyError('REAUTH_REQUIRED');
           await policy.requireRecent(s.session.id);
