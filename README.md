@@ -53,7 +53,7 @@ P01의 실제 DB는 아직 연결되지 않았습니다. `.env.example`을 `.env
 
 현재 Vercel `iharu` 프로젝트에 배포했습니다. [P01 미리보기](https://iharu-qmzq8f97k-987654321pjh123-1875.vercel.app/today)는 Vercel 접근 권한이 필요할 수 있습니다. 기본 주소 `iharu.vercel.app`은 준비 화면만 제공합니다. 프로젝트 생성 시 최초 배포가 자동으로 Production에 배정되어, 수정본으로 준비 화면을 배포했습니다. 실제 서비스 데이터나 로그인은 연결하지 않았습니다.
 
-소스 저장소는 [987654321pjh123-sketch/iharu](https://github.com/987654321pjh123-sketch/iharu)입니다. 2026-09-18 생성 시 공개(Public) 상태로 확인했습니다. 자동화 설정 파일은 준비되어 있으며, GitHub 소스 업로드와 Vercel Git 연결은 별도 작업입니다. Vercel 연결이 완료되기 전에는 push만으로 배포되지 않습니다. `vercel.json`에는 `icn1`을 지정했으나 기존 배포 메타데이터는 `iad1`을 반환했습니다. Supabase 연결 전 함수의 실제 리전과 DB 근접성 설정을 다시 확인해야 합니다.
+소스 저장소는 [987654321pjh123-sketch/iharu](https://github.com/987654321pjh123-sketch/iharu)입니다. 2026-09-18 생성 시 공개(Public) 상태로 확인했습니다. 소스와 자동 검사 설정이 저장소에 반영되어 있습니다. Vercel Git 연결 후 새 커밋부터 자동 배포를 실행하며, 완료 여부는 배포의 Git 커밋 SHA와 `READY` 상태로 확인합니다. 기존 배포의 `READY`만으로 새 커밋이 반영되었다고 판단하지 않습니다. `vercel.json`에는 `icn1`을 지정했으나 기존 배포 메타데이터는 `iad1`을 반환했습니다. Supabase 연결 전 함수의 실제 리전과 DB 근접성 설정을 다시 확인해야 합니다.
 
 ## 자동 배포
 
