@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { readFile } from 'node:fs/promises';
+import { readFile,readdir } from 'node:fs/promises';
 import { testDatabase } from './auth-db.js';
 import { createAuthService } from '../../server/auth/service.js';
 import { FamilyService } from '../../server/family/service.js';
@@ -10,7 +10,7 @@ import { query } from '../../server/auth/database.js';
 import { createApp } from '../../server/app.js';
 
 const { db,engine }=await testDatabase();
-for(const file of ['0001_foundation.sql','0002_better_auth_175.sql','0003_account_policy.sql','0004_family.sql','0005_family_commands.sql','0006_family_maintenance.sql'])await engine.exec(await readFile(`db/migrations/${file}`,'utf8'));
+for(const file of (await readdir('db/migrations')).filter(n=>/^\d+_[a-z0-9_]+\.sql$/.test(n)).sort())await engine.exec(await readFile(`db/migrations/${file}`,'utf8'));
 const outbox:{to:string;url:string;kind:string}[]=[];
 const svc=createAuthService({origin:'http://127.0.0.1:4174',secret:'isolated-browser-fixture-never-use-in-production-001',databaseUrl:'unused',mail:{key:'fixture',from:'test@example.test'},sms:null,social:{}},db,{sendMail:async data=>{outbox.push(data);},sendSms:async()=>{throw new Error('NO_SMS_IN_BROWSER_FIXTURE');}});
 const family=new FamilyService(db,svc.settings.secret,'app_runtime');

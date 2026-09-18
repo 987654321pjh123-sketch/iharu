@@ -25,12 +25,30 @@ try{
  await admin.query(`CREATE ROLE auth_runtime LOGIN PASSWORD '${authPassword}' NOSUPERUSER NOBYPASSRLS`);
  // Runtime roles exist before the role-aware migrations; no test connection is a schema owner.
  await admin.query(`CREATE ROLE app_runtime LOGIN PASSWORD '${appPassword}' NOSUPERUSER NOBYPASSRLS`);
- for(const name of (await readdir('db/migrations')).filter(n=>/^\d+_[a-z0-9_]+\.sql$/.test(n)).sort())await admin.query(await readFile(`db/migrations/${name}`,'utf8'));
+ // Match managed Postgres: the DDL caller is not a superuser and only has SET
+ // membership in the NOLOGIN function owner. An ACL REVOKE after OWNER changes
+ // otherwise emits a warning and can leave PUBLIC execute grants in place.
+ await admin.query('CREATE ROLE migration_admin NOLOGIN NOSUPERUSER NOBYPASSRLS CREATEROLE');
+ await admin.query('GRANT CREATE ON DATABASE iharu_ci TO migration_admin');
+ await admin.query('CREATE ROLE iharu_policy NOLOGIN NOSUPERUSER NOBYPASSRLS');
+ await admin.query('GRANT iharu_policy TO migration_admin WITH INHERIT FALSE, SET TRUE');
+ const migration=await admin.connect();
+ try{
+  await migration.query('BEGIN');await migration.query('SET LOCAL ROLE migration_admin');
+  for(const name of (await readdir('db/migrations')).filter(n=>/^\d+_[a-z0-9_]+\.sql$/.test(n)).sort())await migration.query(await readFile(`db/migrations/${name}`,'utf8'));
+  await migration.query('COMMIT');
+ }catch(e){await migration.query('ROLLBACK');throw e;}finally{migration.release();}
  const authdb=openAuthDatabase(runtimeURL('auth_runtime',authPassword));connections.push(authdb);
  const db1=openApp(runtimeURL('app_runtime',appPassword)),db2=openApp(runtimeURL('app_runtime',appPassword));
  const secret=randomBytes(32).toString('hex'),family1=new FamilyService(db1,secret),family2=new FamilyService(db2,secret),origin='http://localhost:4173';
  const svc=createAuthService({origin,secret,databaseUrl:'test-only',mail:{key:'test-only',from:'test@example.test'},sms:null,social:{}},authdb,{sendMail:async()=>{},sendSms:async()=>{}});
  const app=createApp({environment:'local',demoEnabled:false},()=>svc,async()=>family1);
+ await check('non-superuser migrations restrict verification and maintenance to their intended roles',async()=>{
+  const [acl]=await query<{verify:boolean;maintain:boolean;command:boolean}>(db1,`SELECT has_function_privilege(current_user,'app_private.record_relationship_result(uuid,text,text,date,text,boolean)','EXECUTE') AS verify,has_function_privilege(current_user,'app_private.expire_family_secrets()','EXECUTE') AS maintain,has_function_privilege(current_user,'app_private.family_command(text,jsonb)','EXECUTE') AS command`);
+  assert.deepEqual(acl,{verify:false,maintain:false,command:true});
+  await assert.rejects(query(db1,'SELECT app_private.record_relationship_result($1,$2,$3,$4,$5,$6)',[randomUUID(),'ci-denied','ci-denied','2018-03-02','ci-denied',true]),{code:'42501'});
+  await assert.rejects(query(db1,'SELECT app_private.expire_family_secrets()'),{code:'42501'});
+ });
  await check('parallel Better Auth signup uses a real two-connection auth pool',async()=>{
   const requests=['one','two'].map(name=>app.request(origin+'/api/auth/sign-up/email',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({name:'가상 보호자',email:`${name}@example.test`,password:'integration-fixture-password-2026',callbackURL:'/login?verified=1'})}));
   const results=await Promise.all(requests);for(const r of results)assert.equal(r.status,200,await r.text());
