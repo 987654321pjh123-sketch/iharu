@@ -1,5 +1,5 @@
 import {beforeAll,beforeEach,afterAll,describe,it,expect} from 'vitest';
-import {readFile} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {testDatabase} from './helpers/auth-db';
 import {createAuthService} from '../server/auth/service';
@@ -33,7 +33,7 @@ async function register(b:Browser,fid:string,location=false,nickname='가상 아
 async function grant(owner:Browser,childId:string,target:Browser,flags:Record<string,boolean>={},expectedVersion=0){return owner.ok(`/api/v1/children/${childId}/grants/${target.memberId}`,{daily:false,chat:false,location:false,tuitionRead:false,tuitionWrite:false,...flags,expectedVersion},'PUT');}
 async function pair(owner:Browser,childId:string,device=new Browser()){
  const p=await device.ok('/api/v1/device-pairings',{label:'아이 태블릿'});const resolved=await owner.ok('/api/v1/device-pairings/resolve',{code:p.code});await owner.ok(`/api/v1/device-pairings/${p.id}/approve`,{childId,expectedVersion:resolved.version});return {device,p,exchangeKey:randomUUID()};}
-beforeAll(async()=>{database=await testDatabase();for(const f of ['0001_foundation.sql','0002_better_auth_175.sql','0003_account_policy.sql','0004_family.sql','0005_family_commands.sql','0006_family_maintenance.sql'])await database.engine.exec(await readFile(`db/migrations/${f}`,'utf8'));},30000);
+beforeAll(async()=>{database=await testDatabase();for(const f of (await readdir('db/migrations')).filter(n=>/^\d+_[a-z0-9_]+\.sql$/.test(n)).sort())await database.engine.exec(await readFile(`db/migrations/${f}`,'utf8'));},30000);
 beforeEach(async()=>{await database.engine.exec('TRUNCATE app.families,iharu_auth."user",iharu_auth.verification,iharu_auth.rate_buckets CASCADE');mail.length=0;const svc=createAuthService({origin,secret,databaseUrl:'unused',mail:{key:'fixture',from:'test@example.test'},sms:null,social:{}},database.db,{sendMail:async m=>{mail.push(m);},sendSms:async()=>{}});family=new FamilyService(database.db,secret,'app_runtime');app=createApp({environment:'local',demoEnabled:false},()=>svc,async()=>family);});
 afterAll(async()=>{await database.db.destroy();});
 describe('P03 family policy under the non-owner app_runtime role',()=>{
