@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {id,version} from './family';
+import {id,version} from './family.js';
 
 export const localDate=z.iso.date();
 export const localTime=z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
