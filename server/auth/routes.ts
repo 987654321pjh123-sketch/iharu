@@ -8,6 +8,8 @@ import { policyError } from './policy.js';
 import type { AuthService } from './service.js';
 import { getAuthRuntime } from './runtime.js';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { databaseFailureReason } from '../adapters/database-errors.js';
+const checkedDatabases = new WeakSet<AuthService>();
 
 const names = { email: '이메일', google: 'Google', kakao: '카카오', naver: '네이버', phone: '휴대폰' };
 const publicPost = new Set(['/sign-up/email','/sign-in/email','/sign-in/social','/send-verification-email','/request-password-reset','/reset-password','/phone-number/send-otp','/phone-number/verify','/sign-out','/link-social','/change-password']);
@@ -37,8 +39,13 @@ export function accountRoutes(resolve: () => AuthService | null = getAuthRuntime
     const svc = resolve();
     let ready = false;
     if (svc) {
-      try { await query(svc.db, 'SELECT id FROM iharu_auth.members LIMIT 1'); ready = true; }
-      catch { /* Public response contains no configuration, schema or connection details. */ }
+      try {
+        await query(svc.db, 'SELECT id FROM iharu_auth.members LIMIT 1'); ready = true;
+        if (!checkedDatabases.has(svc)) { console.info('AUTH_DATABASE_CHECK_OK'); checkedDatabases.add(svc); }
+      } catch (error) {
+        console.error(JSON.stringify({code:'AUTH_DATABASE_CHECK_FAILED',reason:databaseFailureReason(error)}));
+        // Public response contains no configuration, schema or connection details.
+      }
     }
     return c.json({ providers: (Object.keys(names) as (keyof typeof names)[]).map(id => ({
       id, name: names[id], enabled: ready && Boolean(id === 'email' ? svc?.settings.mail : id === 'phone' ? svc?.settings.sms : svc?.settings.social[id]),
