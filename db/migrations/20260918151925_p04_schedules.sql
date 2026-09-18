@@ -112,7 +112,11 @@ DECLARE s app.schedule_series%ROWTYPE; v app.schedule_series_versions%ROWTYPE; o
 BEGIN
  SELECT * INTO s FROM app.schedule_series WHERE id=sid FOR UPDATE;
  IF NOT FOUND THEN RETURN; END IF;
- FOR d IN SELECT x::date FROM generate_series(local_today::timestamp,(local_today+55)::timestamp,interval '1 day') x LOOP
+ FOR d IN
+  SELECT x::date FROM generate_series(local_today::timestamp,(local_today+55)::timestamp,interval '1 day') x
+  UNION SELECT old.local_date FROM app.occurrences old WHERE old.series_id=sid AND old.local_date<local_today
+   AND old.actual_date BETWEEN local_today AND local_today+55 AND old.starts_at>now()
+ LOOP
   SELECT * INTO v FROM app.schedule_series_versions WHERE series_id=sid AND d BETWEEN from_date AND until_date;
   applies:=FOUND AND (v.frequency='ONCE' AND d=v.from_date OR v.frequency='WEEKLY' AND extract(dow FROM d)::int=ANY(v.weekdays));
   SELECT * INTO o FROM app.occurrences WHERE series_id=sid AND local_date=d;
@@ -395,7 +399,7 @@ BEGIN
   UPDATE app_private.holiday_sync_runs SET state='FAILED',error_code='HOLIDAY_FETCH_FAILED',lease_until=NULL,retry_after=now()+interval '1 hour' WHERE year=y AND run_date=job.run_date;
   RETURN;
  END IF;
- IF jsonb_typeof(items)<>'array' OR jsonb_array_length(items)>1000 OR source_hash !~ '^[a-f0-9]{64}$' THEN RAISE EXCEPTION 'INVALID_HOLIDAYS'; END IF;
+ IF jsonb_typeof(items)<>'array' OR jsonb_array_length(items) NOT BETWEEN 1 AND 1000 OR source_hash !~ '^[a-f0-9]{64}$' THEN RAISE EXCEPTION 'INVALID_HOLIDAYS'; END IF;
  FOR item IN SELECT jsonb_array_elements(items) LOOP
   IF extract(year FROM (item->>'date')::date)<>y OR coalesce(length(item->>'name'),0) NOT BETWEEN 1 AND 100 OR jsonb_typeof(item->'isHoliday')<>'boolean' THEN RAISE EXCEPTION 'INVALID_HOLIDAYS'; END IF;
  END LOOP;

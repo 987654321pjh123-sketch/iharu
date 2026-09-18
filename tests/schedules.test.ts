@@ -82,6 +82,14 @@ describe('P04 schedules with real SQL and non-owner runtime role',()=>{
   rows=(await calendar(b,fid)).occurrences;expect(rows[0]).toMatchObject({status:'SCHEDULED'});expect(rows[1]).toMatchObject({status:'NEEDS_CONFIRMATION',missingAttendanceSuppressed:true});
   await query(database.db,"UPDATE app_private.holiday_years SET state='FAILED'");data=await calendar(b,fid);expect(data.holidays).toHaveLength(2);expect(data.holidayYears[0].state).toBe('STALE');expect(data.occurrences[0].status).toBe('SCHEDULED');expect(data.occurrences[2].status).toBe('NEEDS_CONFIRMATION');
  });
+ it('refreshes a moved future occurrence even after its original anchor date has passed',async()=>{
+  const {b,cid,fid}=await setup();await cache();await b.ok(`/api/v1/children/${cid}/schedules`,input);
+  const original=(await calendar(b,fid)).occurrences[0],movedDate=addDays(base,3);await change(b,original,{date:movedDate});
+  // Represent the next day after an earlier occurrence was explicitly moved forward.
+  await query(database.db,'UPDATE app.occurrences SET local_date=$1 WHERE id=$2',[addDays(today,-1),original.id]);
+  await query(database.db,'INSERT INTO app_private.holidays(year,local_date,name,is_holiday) VALUES($1,$2,$3,true)',[Number(movedDate.slice(0,4)),movedDate,'변경된 휴일 예시']);await query(database.db,'UPDATE app_private.holiday_years SET version=version+1');
+  expect((await calendar(b,fid)).occurrences.find(o=>o.id===original.id)).toMatchObject({date:movedDate,status:'NEEDS_CONFIRMATION',holidayNames:['변경된 휴일 예시']});
+ });
  it('separates institutional closures from holidays and creates a linked makeup without erasing the original',async()=>{
   const {b,cid,fid}=await setup();await cache();const series=await b.ok(`/api/v1/children/${cid}/schedules`,input);let rows=(await calendar(b,fid)).occurrences;
   await b.ok(`/api/v1/schedule-series/${series.id}/closures`,{from:base,to:addDays(base,2),kind:'VACATION',reason:'가상 학원 방학',expectedVersion:rows[0].resourceVersion});rows=(await calendar(b,fid)).occurrences;
