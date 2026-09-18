@@ -7,6 +7,8 @@ export default defineConfig({
       args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'],
     } : {},
   },
-  webServer:{ command:'npm run start', url:'http://127.0.0.1:4173/api/health', reuseExistingServer:!process.env.CI,
+  webServer:[{ command:'npm run start', url:'http://127.0.0.1:4173/api/health', reuseExistingServer:!process.env.CI,
     env:{ APP_ENV:'local', DEMO_MODE:'true' } },
+    { command:'node --import tsx tests/helpers/auth-server.ts',url:'http://127.0.0.1:4174/api/health',reuseExistingServer:false },
+  ],
 });
