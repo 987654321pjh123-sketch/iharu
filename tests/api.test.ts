@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createApp } from '../server/app';
 import { readConfig } from '../server/env';
 import { envelope, dashboardSchema, healthSchema, apiErrorSchema } from '../shared/contracts';
-const app = createApp({ environment:'local', demoEnabled:true });
+// API boundary tests must never resolve the deployment's real auth/database settings.
+const app = createApp({ environment:'local', demoEnabled:true }, () => null, async () => null);
 describe('P01 API boundaries', () => {
   it('returns a validated health response without exposing credentials', async () => {
     const response = await app.request('/api/health');

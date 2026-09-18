@@ -36,7 +36,15 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - name: Check with deployment variables present (isolated fixtures only)
+        run: npm run check
+        env:
+          APP_ENV: production
+          DEMO_MODE: 'false'
+          APP_ORIGIN: https://iharu.example.test
+          BETTER_AUTH_SECRET: ci-fixture-only-not-a-deployment-secret-0001
+          APP_DATABASE_URL: postgresql://app_fixture:fixture@127.0.0.1:1/unreachable
+          AUTH_DATABASE_URL: postgresql://auth_fixture:fixture@127.0.0.1:1/unreachable
       - name: Verify actual PostgreSQL concurrency and role isolation
         run: npm run test:postgres
         env:
