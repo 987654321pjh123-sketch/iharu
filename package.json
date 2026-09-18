@@ -1,0 +1,45 @@
+{
+  "name": "iharu",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web 'npm:dev:api' 'npm:dev:web'",
+    "dev:api": "node --watch --import tsx --env-file-if-exists=.env.local server/dev.ts",
+    "dev:web": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "start": "node --import tsx --env-file-if-exists=.env.local server/preview.ts",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "npm test && npm run build",
+    "build:deploy": "npm run check",
+    "deploy:connect": "node scripts/connect-deployment.mjs",
+    "db:check": "node --import tsx --env-file-if-exists=.env.local scripts/db-check.ts",
+    "db:migrate": "node --import tsx --env-file-if-exists=.env.local scripts/migrate.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.1",
+    "hono": "4.13.8",
+    "postgres": "3.4.9",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router-dom": "7.18.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.13.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "concurrently": "10.0.5",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}

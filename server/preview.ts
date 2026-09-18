@@ -1,0 +1,11 @@
+import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { createApp } from './app.js';
+const app = new Hono();
+app.all('/api', c => createApp().fetch(c.req.raw));
+app.all('/api/*', c => createApp().fetch(c.req.raw));
+app.use('*', serveStatic({ root:'./dist' }));
+app.get('/assets/*', c => c.text('Not found', 404));
+app.get('*', serveStatic({ path:'./dist/index.html' }));
+serve({ fetch:app.fetch, hostname:'0.0.0.0', port:Number(process.env.PORT || 4173) }, () => console.log('아이하루 http://localhost:' + (process.env.PORT || 4173)));
