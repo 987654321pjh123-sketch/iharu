@@ -1,0 +1,17 @@
+import { z } from 'zod';
+export const id = z.uuid();
+export const version = z.number().int().nonnegative();
+export const familyName = z.string().trim().min(1).max(40);
+export const grantsInput = z.object({ daily:z.boolean(),chat:z.boolean(),location:z.boolean(),tuitionRead:z.boolean(),tuitionWrite:z.boolean(),expectedVersion:version }).strict().refine(p=>!p.tuitionWrite||p.tuitionRead,'비용 수정은 조회 권한이 필요해요.');
+export const childInput = z.object({ draftId:id,proofId:id,nickname:z.string().trim().min(1).max(24),birthDate:z.iso.date() }).strict();
+export const familySchema=z.object({id,name:z.string(),owner:z.boolean(),version});
+export const familiesSchema=z.object({families:z.array(familySchema)});
+export const childrenSchema=z.object({children:z.array(z.object({id,nickname:z.string(),version,canManage:z.boolean(),locationConsent:z.boolean()}))});
+export const membersSchema=z.object({members:z.array(z.object({id,memberId:id,name:z.string(),status:z.enum(['ACTIVE','PENDING']),owner:z.boolean(),version}))});
+export const grantsSchema=z.object({grants:z.array(z.object({memberId:id,name:z.string(),consenter:z.boolean(),daily:z.boolean(),chat:z.boolean(),location:z.boolean(),tuitionRead:z.boolean(),tuitionWrite:z.boolean(),version}))});
+export const devicesSchema=z.object({devices:z.array(z.object({id,label:z.string(),status:z.string(),lastSeenAt:z.string()}))});
+export const draftSchema=z.object({id,state:z.enum(['DRAFT','PENDING','VERIFIED','REJECTED','ACTIVATED']),expiresAt:z.string(),birthDate:z.string().nullable().optional()});
+export const childSessionSchema=z.object({id,childId:id,nickname:z.string(),locationAllowed:z.boolean()});
+export const setupSchema=z.object({accountReady:z.boolean(),databaseReady:z.boolean(),relationshipVerification:z.literal('NOT_CONNECTED'),realChildRegistrationEnabled:z.literal(false)});
+export type Family=z.infer<typeof familySchema>;
+export type Grant=z.infer<typeof grantsSchema>['grants'][number];
